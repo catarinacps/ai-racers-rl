@@ -1,11 +1,34 @@
 import interfaces as controller_template
 from itertools import product
 from typing import Tuple, List
+from random import randint, uniform
+from math import exp
+
+# Constants for sensor indexing
+DIST_LEFT = 0
+DIST_CENTER = 1
+DIST_RIGHT = 2
+ON_TRACK = 3
+DIST_CHECKPOINT = 4
+SPEED = 5
+DIST_ENEMY = 6
+ENEMY_ANGLE = 7
+ENEMY_NEAR = 8
+CHECKPOINT = 9
+NEXT_TRACK = 10
+DIST_BOMB = 11
+BOMB_ANGLE = 12
+BOMB_NEAR = 13
+
+NUM_OF_ACTIONS = 5
 
 
 class State(controller_template.State):
     def __init__(self, sensors: list):
         self.sensors = sensors
+
+        self.prev_sens = [0.0 for x in self.sensors]
+        self.prev_feats = []
 
     def compute_features(self) -> Tuple:
         """
@@ -30,7 +53,17 @@ class State(controller_template.State):
           (see the specification file/manual for more details)
         :return: A Tuple containing the features you defined
         """
+
         raise NotImplementedError("This method must be implemented")
+        # Some features
+        if self.sensors[CHECKPOINT] == 1:
+            check_diff = 0
+        else:
+            check_diff = self.sensors[DIST_CHECKPOINT]-self.prev_sens[DIST_CHECKPOINT]
+
+        speed = self.sensors[SPEED]
+        dist_ahead = self.sensors[DIST_CENTER]
+        return check_diff, speed, dist_ahead
 
     def discretize_features(self, features: Tuple) -> Tuple:
         """
@@ -40,6 +73,7 @@ class State(controller_template.State):
         """
         raise NotImplementedError("This method must be implemented")
 
+
     @staticmethod
     def discretization_levels() -> Tuple:
         """
@@ -47,6 +81,7 @@ class State(controller_template.State):
         :return: A tuple containing the discretization levels of each feature
         """
         raise NotImplementedError("This method must be implemented")
+
 
     @staticmethod
     def enumerate_all_possible_states() -> List:
@@ -65,6 +100,12 @@ class QTable(controller_template.QTable):
         This class is used to create/load/store your Q-table. To store values we strongly recommend the use of a Python
         dictionary.
         """
+        self.default_pref = 0.1
+        self.table = {}
+
+        states = ['st', 'st2']
+        labels = [1,2,3,4,5] # actions
+
         raise NotImplementedError()
 
     def get_q_value(self, key: State, action: int) -> float:
@@ -76,6 +117,9 @@ class QTable(controller_template.QTable):
         """
         raise NotImplementedError()
 
+        q_value = self.table[key][action]
+        return q_value
+
     def set_q_value(self, key: State, action: int, new_q_value: float) -> None:
         """
         Used to securely set the values within this q-table
@@ -85,6 +129,14 @@ class QTable(controller_template.QTable):
         :return: 
         """
         raise NotImplementedError()
+        self.table[key][action] = new_q_value;
+
+    def get_best_action(self, key: State) -> (int, int):
+
+        values = self.q_table[key]
+        highest = max(values)
+        index = values.index(highest)
+        return self.labels[index], highest
 
     @staticmethod
     def load(path: str) -> "QTable":
@@ -112,6 +164,22 @@ class Controller(controller_template.Controller):
         else:
             self.q_table = QTable.load(q_table_path)
 
+        # Available actions
+        self.actions = {1: 'Accel', 2: 'Brake', 3: 'Left', 4: 'Right', 5: 'Nop'}
+        self.num_actions = len(self.actions.keys)
+        self.features = []
+        self.num_features = len(self.features)
+
+        # Attenuation of benefit
+        self.atten = 0.9
+        # Learning rate frame-wise
+        self.alpha = 0.5
+        # Curiosity for worse options
+        # self.exploration_initial = 0.9
+        # self.exploration_threshold = 0.5
+
+
+
     def update_q(self, new_state: State, old_state: State, action: int, reward: float, end_of_race: bool) -> None:
         """
         This method is called by the learn() method in simulator.Simulation() to update your Q-table after each action is taken
@@ -122,6 +190,14 @@ class Controller(controller_template.Controller):
         :param end_of_race: boolean indicating if a race timeout was reached
         """
         raise NotImplementedError("This method must be implemented")
+
+        pref = self.q_table.get_q_value(old_state, action)
+        next_action, next_pref = self.q_table.get_best_action(new_state)
+        # Q-Learning equation:
+        # Alpha rate of learning, gamma time attenuation of future benefit
+        updated = (1-alpha)*pref + alpha*(reward + atten*next_pref)
+
+        self.q_table.set_q_value(old_state, action, updated)
 
     def compute_reward(self, new_state: State, old_state: State, action: int, n_steps: int,
                        end_of_race: bool) -> float:
@@ -144,3 +220,38 @@ class Controller(controller_template.Controller):
         :return: The action the car chooses to execute
         """
         raise NotImplementedError("This method must be implemented")
+        #exploration = initial_exploration**log(episode_number)
+        #if exploration > exploration_threshold:
+
+        # Exploration policies: Greedy, epsilon greedy, Boltzmann roulette
+
+        action = boltzmann(new_state, episode_number)
+        return action
+
+    def epsilon_greedy(self, new_state: State, eps: int):
+
+        if eps <= uniform(0.0, 1.0):
+            action, value = self.q_table.get_best_action(new_state)
+        else:
+            r = randint(self.num_actions)
+            action = self.actions.keys[r]
+        return action
+
+    def boltzmann(self, state: State, temperature: int):
+
+        evals = []
+        for action in self.actions.keys:
+            q_value = self.q_table.get_q_value(state, action)
+            evals.append(exp(q_value/self.temperature))
+
+        evals /= sum(evals)
+        target = uniform(0.0, 1.0)
+        roulette = 0
+        chosen_action = self.actions.keys[0]
+
+        for i in range(self.num_actions):
+            roulette += evals[i]
+            if roulette >= target:
+                chosen_action = self.actions.keys[i]
+
+        return chosen_action
