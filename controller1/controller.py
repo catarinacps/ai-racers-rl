@@ -16,12 +16,12 @@ ENEMY_ANGLE = 7
 ENEMY_NEAR = 8
 CHECKPOINT = 9
 NEXT_TRACK = 10
-DIST_BOMB = 11
-BOMB_ANGLE = 12
-BOMB_NEAR = 13
+DIST_BOMB = 12
+BOMB_ANGLE = 13
+BOMB_NEAR = 11
 
 NUM_OF_ACTIONS = 5
-
+MAX_POSSIBLE_DIFF = 20  # maximum speed going straigth towards the checkpoint
 
 class State(controller_template.State):
     def __init__(self, sensors: list):
@@ -47,9 +47,17 @@ class State(controller_template.State):
             8 enemy_detected: 0 or 1
             9 checkpoint: 0 or 1
            10 incoming_track: 1 if normal track, 2 if ice track or 0 if car is off track
+           
+           wrong:
            11 bomb_distance = -1 or 0-???
            12 bomb_position_angle = -180 to 180
            13 bomb_detected = 0 or 1
+
+            right:
+            11: detected
+            12: distance
+            13: angle
+
           (see the specification file/manual for more details)
         :return: A Tuple containing the features you defined
         """
@@ -210,7 +218,33 @@ class Controller(controller_template.Controller):
         :param end_of_race: boolean indicating if a race timeout was reached
         :return: The reward to be given to the agent
         """
-        raise NotImplementedError("This method must be implemented")
+
+        if (new_state[ON_TRACK] == 1) or (new_state[ON_TRACK] == 2):
+            on_track = 1
+        else:
+            on_track = -1
+
+        
+        if new_state[CHECKPOINT] == 1: # got past a checkpoint
+            diff = MAX_POSSIBLE_DIFF  
+        else:
+            diff = old_state[DIST_CHECKPOINT] - new_state[DIST_CHECKPOINT]
+        
+
+        if (old_state[DIST_BOMB] <= 50) and (new_state[DIST_BOMB] == -1):
+            bomb_exploded = 1
+        else:
+            bomb_exploded = -1
+
+        # then we have:
+        # on_track and bomb_exploded belonging to {-1; 1}
+        # and diff [0, 20]
+        reward =    (on_track * 15) + \
+                    (bomb_exploded * 15) + \
+                    diff
+
+        return reward
+
 
     def take_action(self, new_state: State, episode_number: int) -> int:
         """
