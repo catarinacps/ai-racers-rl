@@ -161,10 +161,10 @@ class QTable(controller_template.QTable):
 
         for state in states:
             state_actions = {}
-            for i in actions:
-                state_actions[i] = randint(0,50)
+            for action in actions:
+                state_actions[action] = randint(0,50)
             self.table[state] = state_actions
-            
+
 
     def get_q_value(self, key: State, action: int) -> float:
         """
@@ -173,7 +173,6 @@ class QTable(controller_template.QTable):
         :param action: an action
         :return: The Q-value associated with the given state/action pair
         """
-        raise NotImplementedError()
 
         q_value = self.table[key][action]
         return q_value
@@ -186,15 +185,16 @@ class QTable(controller_template.QTable):
         :param new_q_value: the new Q-value to associate with the specified state/action pair
         :return: 
         """
-        raise NotImplementedError()
-        self.table[key][action] = new_q_value;
+
+        self.table[key][action] = new_q_value
+
 
     def get_best_action(self, key: State) -> (int, int):
 
-        values = self.q_table[key]
-        highest = max(values)
-        index = values.index(highest)
-        return self.labels[index], highest
+        values = self.table[key]
+        best_action = max(values)
+        best_q_value = self.table[key][best_action]
+        return best_action, best_q_value
 
     @staticmethod
     def load(path: str) -> "QTable":
