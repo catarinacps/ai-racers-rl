@@ -1,0 +1,9 @@
+#+title: ai-racers-rl
+#+author: Henrique Silva
+#+email: hcpsilva@inf.ufrgs.br
+#+infojs_opt:
+
+Nesse repositório pretendemos implementar o algoritmo de /Q-learning/ para a
+segunda entrega do trabalho da disciplina de Inteligência Artificial.
+
+Mais detalhes serão adicionados mais tarde.
