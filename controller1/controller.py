@@ -79,7 +79,7 @@ class State(controller_template.State):
         angle_bomb = self.sensors[BOMB_ANGLE]
 
         
-        return check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb
+        return [check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb]
 
     
 
@@ -106,7 +106,7 @@ class State(controller_template.State):
         #HELP IDK WHAT TO PUT HERE
         angle_bomb = 0 if abs(features[6]) >= 45 else 1
 
-        return check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb
+        return [check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb]
 
 
     @staticmethod
@@ -137,13 +137,34 @@ class QTable(controller_template.QTable):
         This class is used to create/load/store your Q-table. To store values we strongly recommend the use of a Python
         dictionary.
         """
+
+        # The key to the dictionary is the state, the value is another dictonary
+        # The key of that dictionary is an action and the value is the Q value
+        # of that action in that state
+        # {
+        #   <State> {
+        #               1: q val
+        #               2: q val
+        #               3: q val
+        #               4: q val
+        #               5: q val
+        #           }
+        #   <Another state> { ... }
+        #   ....
+        # }
+
         self.default_pref = 0.1
         self.table = {}
 
-        states = ['st', 'st2']
-        labels = [1,2,3,4,5] # actions
+        states = State.enumerate_all_possible_states()
+        actions = range(1,6) # because it's a closed interval
 
-        raise NotImplementedError()
+        for state in states:
+            state_actions = {}
+            for i in actions:
+                state_actions[i] = randint(0,50)
+            self.table[state] = state_actions
+            
 
     def get_q_value(self, key: State, action: int) -> float:
         """
