@@ -3,6 +3,7 @@ from itertools import product
 from typing import Tuple, List
 from random import randint, uniform
 from math import exp
+import pickle
 
 # Constants for sensor indexing
 DIST_LEFT = 0
@@ -154,7 +155,7 @@ class QTable(controller_template.QTable):
         # }
 
         self.default_pref = 0.1
-        self.table = {}
+        self.q_table = {}
 
         states = State.enumerate_all_possible_states()
         actions = range(1,6) # because it's a closed interval
@@ -163,7 +164,7 @@ class QTable(controller_template.QTable):
             state_actions = {}
             for action in actions:
                 state_actions[action] = randint(0,50)
-            self.table[state] = state_actions
+            self.q_table[state] = state_actions
 
 
     def get_q_value(self, key: State, action: int) -> float:
@@ -174,7 +175,7 @@ class QTable(controller_template.QTable):
         :return: The Q-value associated with the given state/action pair
         """
 
-        q_value = self.table[key][action]
+        q_value = self.q_table[key][action]
         return q_value
 
     def set_q_value(self, key: State, action: int, new_q_value: float) -> None:
@@ -186,15 +187,16 @@ class QTable(controller_template.QTable):
         :return: 
         """
 
-        self.table[key][action] = new_q_value
+        self.q_table[key][action] = new_q_value
 
 
     def get_best_action(self, key: State) -> (int, int):
 
-        values = self.table[key]
+        values = self.q_table[key]
         best_action = max(values)
-        best_q_value = self.table[key][best_action]
+        best_q_value = self.q_table[key][best_action]
         return best_action, best_q_value
+
 
     @staticmethod
     def load(path: str) -> "QTable":
@@ -203,7 +205,10 @@ class QTable(controller_template.QTable):
         :param path: path to file
         :return: a QTable object
         """
-        raise NotImplementedError()
+        with open(path, 'rb') as handle:
+            q_table = pickle.load(handle)
+        return q_table
+
 
     def save(self, path: str, *args) -> None:
         """
@@ -212,7 +217,9 @@ class QTable(controller_template.QTable):
         :param args: Any optional args you may find relevant; beware that they are optional and the function must work
                      properly without them.
         """
-        raise NotImplementedError()
+        with open(path, 'wb') as handle:
+            pickle.dump(self.q_table, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        return
 
 
 class Controller(controller_template.Controller):
