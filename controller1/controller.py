@@ -62,16 +62,27 @@ class State(controller_template.State):
         :return: A Tuple containing the features you defined
         """
 
-        raise NotImplementedError("This method must be implemented")
+        
         # Some features
         if self.sensors[CHECKPOINT] == 1:
-            check_diff = 0
+            check_diff = 20
         else:
-            check_diff = self.sensors[DIST_CHECKPOINT]-self.prev_sens[DIST_CHECKPOINT]
+            check_diff = self.prev_sens[DIST_CHECKPOINT] - self.sensors[DIST_CHECKPOINT]
 
         speed = self.sensors[SPEED]
         dist_ahead = self.sensors[DIST_CENTER]
-        return check_diff, speed, dist_ahead
+        dist_left = self.sensors[DIST_LEFT]
+        dist_rigth = self.sensors[DIST_RIGHT]
+        
+
+        dist_bomb = self.sensors[DIST_BOMB]
+        angle_bomb = self.sensors[BOMB_ANGLE]
+
+        
+        return check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb
+
+    
+
 
     def discretize_features(self, features: Tuple) -> Tuple:
         """
@@ -79,7 +90,23 @@ class State(controller_template.State):
         :param features 
         :return: A tuple containing the discretized features
         """
-        raise NotImplementedError("This method must be implemented")
+        
+        # we consider a 5 levels discretization having the levels 0, 1, 2, 3 and 4
+        check_diff = features[0] // 4 if features[0] < 20 else 4 
+        speed = features[1] // 40 if features[1] < 200 else 4 
+        dist_ahead = features[2] // 20 if features[2] < 100 else 4
+
+        # we consider a 3 levels discretization having the levels 0, 1 and 2
+        dist_left = features[3] // 33 if features[3] < 99 else 2
+        dist_rigth = features[4] // 33 if features[4] < 99 else 2
+
+        # dist bomb: binary, either too close to a bomb or not
+        dist_bomb = 0 if features[5] > 50 else 1
+        # angle bomb: binary, either in a possible colision or not
+        #HELP IDK WHAT TO PUT HERE
+        angle_bomb = 0 if abs(features[6]) >= 45 else 1
+
+        return check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb
 
 
     @staticmethod
@@ -88,7 +115,9 @@ class State(controller_template.State):
         This function should return a vector specifying how many discretization levels to use for each state feature.
         :return: A tuple containing the discretization levels of each feature
         """
-        raise NotImplementedError("This method must be implemented")
+        
+        #check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb
+        return [5, 5, 5, 3, 3, 2, 2]
 
 
     @staticmethod
