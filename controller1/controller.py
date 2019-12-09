@@ -31,6 +31,8 @@ class State(controller_template.State):
         self.prev_sens = [0.0 for x in self.sensors]
         self.prev_feats = []
 
+        self.discretized_state = self.discretize_features(self.compute_features())
+
     def compute_features(self) -> Tuple:
         """
         This function should take the raw sensor information of the car (see below) and compute useful features for selecting an action
@@ -65,7 +67,7 @@ class State(controller_template.State):
 
         
         # Some features
-        if self.sensors[CHECKPOINT] == 1:
+        if (self.sensors[CHECKPOINT] == 1) or (self.prev_sens[DIST_CHECKPOINT] == 0):
             check_diff = 20
         else:
             check_diff = self.prev_sens[DIST_CHECKPOINT] - self.sensors[DIST_CHECKPOINT]
@@ -79,8 +81,7 @@ class State(controller_template.State):
         dist_bomb = self.sensors[DIST_BOMB]
         angle_bomb = self.sensors[BOMB_ANGLE]
 
-        
-        return [check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb]
+        return (check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb)
 
     
 
@@ -91,7 +92,7 @@ class State(controller_template.State):
         :param features 
         :return: A tuple containing the discretized features
         """
-        
+
         # we consider a 5 levels discretization having the levels 0, 1, 2, 3 and 4
         check_diff = features[0] // 4 if features[0] < 20 else 4 
         speed = features[1] // 40 if features[1] < 200 else 4 
@@ -107,7 +108,7 @@ class State(controller_template.State):
         #HELP IDK WHAT TO PUT HERE
         angle_bomb = 0 if abs(features[6]) >= 45 else 1
 
-        return [check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb]
+        return (check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb)
 
 
     @staticmethod
@@ -174,7 +175,7 @@ class QTable(controller_template.QTable):
         :param action: an action
         :return: The Q-value associated with the given state/action pair
         """
-
+        key = key.discretized_state
         q_value = self.q_table[key][action]
         return q_value
 
@@ -186,12 +187,13 @@ class QTable(controller_template.QTable):
         :param new_q_value: the new Q-value to associate with the specified state/action pair
         :return: 
         """
-
+        key = key.discretized_state
         self.q_table[key][action] = new_q_value
 
 
     def get_best_action(self, key: State) -> (int, int):
-
+        
+        key = key.discretized_state
         values = self.q_table[key]
         best_action = max(values)
         best_q_value = self.q_table[key][best_action]
@@ -230,10 +232,10 @@ class Controller(controller_template.Controller):
             self.q_table = QTable.load(q_table_path)
 
         # Available actions
-        self.actions = {1: 'Accel', 2: 'Brake', 3: 'Left', 4: 'Right', 5: 'Nop'}
-        self.num_actions = len(self.actions.keys)
-        self.features = []
-        self.num_features = len(self.features)
+        # {1: 'Accel', 2: 'Brake', 3: 'Left', 4: 'Right', 5: 'Nop'}
+        self.actions = [1,2,3,4,5]
+        self.num_actions = len(self.actions)
+
 
         # Attenuation of benefit
         self.atten = 0.9
@@ -242,6 +244,8 @@ class Controller(controller_template.Controller):
         # Curiosity for worse options
         # self.exploration_initial = 0.9
         # self.exploration_threshold = 0.5
+
+        self.temperature = 0.9 #???????
 
 
 
@@ -254,15 +258,15 @@ class Controller(controller_template.Controller):
         :param reward: the reward the car received for getting to new_state  
         :param end_of_race: boolean indicating if a race timeout was reached
         """
-        raise NotImplementedError("This method must be implemented")
 
         pref = self.q_table.get_q_value(old_state, action)
         next_action, next_pref = self.q_table.get_best_action(new_state)
         # Q-Learning equation:
         # Alpha rate of learning, gamma time attenuation of future benefit
-        updated = (1-alpha)*pref + alpha*(reward + atten*next_pref)
+        updated = (1-self.alpha)*pref + self.alpha*(reward + self.atten*next_pref)
 
         self.q_table.set_q_value(old_state, action, updated)
+
 
     def compute_reward(self, new_state: State, old_state: State, action: int, n_steps: int,
                        end_of_race: bool) -> float:
@@ -310,13 +314,12 @@ class Controller(controller_template.Controller):
         :param episode_number: current episode/race during the training period
         :return: The action the car chooses to execute
         """
-        raise NotImplementedError("This method must be implemented")
         #exploration = initial_exploration**log(episode_number)
         #if exploration > exploration_threshold:
 
         # Exploration policies: Greedy, epsilon greedy, Boltzmann roulette
 
-        action = boltzmann(new_state, episode_number)
+        action = self.boltzmann(new_state, episode_number)
         return action
 
     def epsilon_greedy(self, new_state: State, eps: int):
@@ -324,25 +327,25 @@ class Controller(controller_template.Controller):
         if eps <= uniform(0.0, 1.0):
             action, value = self.q_table.get_best_action(new_state)
         else:
-            r = randint(self.num_actions)
-            action = self.actions.keys[r]
+            r = randint(1, self.num_actions)
+            action = r
         return action
 
     def boltzmann(self, state: State, temperature: int):
 
         evals = []
-        for action in self.actions.keys:
+        for action in self.actions:
             q_value = self.q_table.get_q_value(state, action)
             evals.append(exp(q_value/self.temperature))
 
         evals /= sum(evals)
         target = uniform(0.0, 1.0)
         roulette = 0
-        chosen_action = self.actions.keys[0]
+        chosen_action = self.actions[0]
 
-        for i in range(self.num_actions):
+        for i in self.actions:
             roulette += evals[i]
             if roulette >= target:
-                chosen_action = self.actions.keys[i]
+                chosen_action = i
 
         return chosen_action
