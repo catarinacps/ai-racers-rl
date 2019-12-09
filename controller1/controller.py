@@ -72,16 +72,8 @@ class State(controller_template.State):
         else:
             check_diff = self.prev_sens[DIST_CHECKPOINT] - self.sensors[DIST_CHECKPOINT]
 
-        speed = self.sensors[SPEED]
-        dist_ahead = self.sensors[DIST_CENTER]
-        dist_left = self.sensors[DIST_LEFT]
-        dist_rigth = self.sensors[DIST_RIGHT]
-        
 
-        dist_bomb = self.sensors[DIST_BOMB]
-        angle_bomb = self.sensors[BOMB_ANGLE]
-
-        return (check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb)
+        return [check_diff]
 
     
 
@@ -95,20 +87,25 @@ class State(controller_template.State):
 
         # we consider a 5 levels discretization having the levels 0, 1, 2, 3 and 4
         check_diff = features[0] // 4 if features[0] < 20 else 4 
-        speed = features[1] // 40 if features[1] < 200 else 4 
-        dist_ahead = features[2] // 20 if features[2] < 100 else 4
+        speed = self.sensors[SPEED] // 40 if self.sensors[SPEED] < 200 else 4 
+        dist_ahead = self.sensors[DIST_CENTER] // 20 if self.sensors[DIST_CENTER] < 100 else 4
 
         # we consider a 3 levels discretization having the levels 0, 1 and 2
-        dist_left = features[3] // 33 if features[3] < 99 else 2
-        dist_rigth = features[4] // 33 if features[4] < 99 else 2
+        dist_left = self.sensors[DIST_LEFT] // 33 if self.sensors[DIST_LEFT] < 99 else 2
+        dist_rigth = self.sensors[DIST_RIGHT] // 33 if self.sensors[DIST_RIGHT] < 99 else 2
 
         # dist bomb: binary, either too close to a bomb or not
-        dist_bomb = 0 if features[5] > 50 else 1
+        dist_bomb = 0 if self.sensors[DIST_BOMB] > 50 else 1
         # angle bomb: binary, either in a possible colision or not
         #HELP IDK WHAT TO PUT HERE
-        angle_bomb = 0 if abs(features[6]) >= 45 else 1
+        angle_bomb = 0 if abs(self.sensors[BOMB_ANGLE]) >= 45 else 1
 
-        return (check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb)
+        on_ice = 1 if self.sensors[ON_TRACK] == 2 else 0
+        on_grass = 1 if self.sensors[ON_TRACK] == 0 else 0
+        #return (check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb)
+        return (check_diff, speed, dist_ahead, dist_left, 
+                dist_rigth, dist_bomb, angle_bomb, on_ice, 
+                on_grass,)
 
 
     @staticmethod
@@ -119,7 +116,8 @@ class State(controller_template.State):
         """
         
         #check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb
-        return [5, 5, 5, 3, 3, 2, 2]
+        #return [5, 5, 5, 3, 3, 2, 2]
+        return [5, 5, 5, 3, 3, 2, 2, 2, 2]
 
 
     @staticmethod
@@ -159,12 +157,12 @@ class QTable(controller_template.QTable):
         self.q_table = {}
 
         states = State.enumerate_all_possible_states()
-        actions = range(1,6) # because it's a closed interval
+        actions = range(1,6) # because the interval is [1, 6)
 
         for state in states:
             state_actions = {}
             for action in actions:
-                state_actions[action] = randint(0,50)
+                state_actions[action] = 0#randint(0,50)
             self.q_table[state] = state_actions
 
 
@@ -220,7 +218,7 @@ class QTable(controller_template.QTable):
                      properly without them.
         """
         with open(path, 'wb') as handle:
-            pickle.dump(self.q_table, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self    , handle, protocol=pickle.HIGHEST_PROTOCOL)
         return
 
 
@@ -280,19 +278,19 @@ class Controller(controller_template.Controller):
         :return: The reward to be given to the agent
         """
 
-        if (new_state[ON_TRACK] == 1) or (new_state[ON_TRACK] == 2):
+        if (new_state.sensors[ON_TRACK] == 1) or (new_state.sensors[ON_TRACK] == 2):
             on_track = 1
         else:
             on_track = -1
 
         
-        if new_state[CHECKPOINT] == 1: # got past a checkpoint
+        if new_state.sensors[CHECKPOINT] == 1: # got past a checkpoint
             diff = MAX_POSSIBLE_DIFF  
         else:
-            diff = old_state[DIST_CHECKPOINT] - new_state[DIST_CHECKPOINT]
+            diff = old_state.sensors[DIST_CHECKPOINT] - new_state.sensors[DIST_CHECKPOINT]
         
 
-        if (old_state[DIST_BOMB] <= 50) and (new_state[DIST_BOMB] == -1):
+        if (old_state.sensors[DIST_BOMB] <= 50) and (new_state.sensors[DIST_BOMB] == -1):
             bomb_exploded = 1
         else:
             bomb_exploded = -1
@@ -303,6 +301,10 @@ class Controller(controller_template.Controller):
         reward =    (on_track * 15) + \
                     (bomb_exploded * 15) + \
                     diff
+
+
+        # normalize reward to [0, 1]
+        #reward = (reward - (-35)) / (50 + 35)
 
         return reward
 
@@ -319,7 +321,8 @@ class Controller(controller_template.Controller):
 
         # Exploration policies: Greedy, epsilon greedy, Boltzmann roulette
 
-        action = self.boltzmann(new_state, episode_number)
+        #action = self.boltzmann(new_state, episode_number+1) #+1 to avoid division by zero
+        action = self.epsilon_greedy(new_state, 0.9)
         return action
 
     def epsilon_greedy(self, new_state: State, eps: int):
@@ -336,14 +339,15 @@ class Controller(controller_template.Controller):
         evals = []
         for action in self.actions:
             q_value = self.q_table.get_q_value(state, action)
-            evals.append(exp(q_value/self.temperature))
+            evals.append(exp(q_value/temperature))
 
-        evals /= sum(evals)
+        evals = [x/sum(evals) for x in evals]
         target = uniform(0.0, 1.0)
         roulette = 0
         chosen_action = self.actions[0]
 
-        for i in self.actions:
+        for i in range(self.num_actions):
+
             roulette += evals[i]
             if roulette >= target:
                 chosen_action = i
