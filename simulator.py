@@ -19,7 +19,7 @@ import pymunk as pymunk
 from pymunk import Vec2d
 from pymunk.pygame_util import draw
 from trigonometry import *
-from controller1.controller import Controller, State
+from controller1 import Controller, State
 from controller2.controller import Controller as Controller2
 from controller2.controller import State as State2
 import datetime, time
@@ -318,7 +318,7 @@ class _Car:
 
         #Poll events
         event = pygame.event.poll()
-        
+
         if show_simulation:
             p = self.car_body.position
             # Correct p because pygame crazy coordinate system
@@ -871,7 +871,7 @@ class _Bomb(_Car):
 
     def _create_new_car_body(self):
         """
-         
+
         """
         self.car_body = pymunk.Body(100, pymunk.inf)
         self.car_body.position = self.position[0][0], self.position[0][1]
