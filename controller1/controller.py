@@ -9,7 +9,7 @@ NUM_OF_ACTIONS = 5
 MAX_POSSIBLE_DIFF = 20  # maximum speed going straigth towards the checkpoint
 
 class Controller(controller_template.Controller):
-    def __init__(self, q_table_path: str, atten: float, alpha: float, init_temp: 90):
+    def __init__(self, q_table_path: str, atten: float, alpha: float, init_temp: float):
         if q_table_path is None:
             self.q_table = QTable()
         else:
@@ -27,13 +27,13 @@ class Controller(controller_template.Controller):
         self.atten = atten
         # Learning rate frame-wise
         self.alpha = alpha
-        # Curiosity for worse options
-        # self.exploration_initial = 0.9
-        # self.exploration_threshold = 0.5
-
-        self.cooling_factor = 0.99
+        
+        # Exploration
         self.temperature = init_temp  
+        self.cooling_factor = 0.99
 
+        self.eps = 0.1
+        self.eps_factor = 0.99
 
     def update_q(self, new_state: State, old_state: State, action: int, reward: float, end_of_race: bool) -> None:
         """
@@ -105,21 +105,35 @@ class Controller(controller_template.Controller):
 
         # Exploration policies: Greedy, epsilon greedy, Boltzmann roulette
 
-        action = self.boltzmann(new_state)
-        self.temperature = self.cooling(episode_number)
+        action = self.epsilon_greedy(new_state, episode_number)
 
         return action
 
-    def epsilon_greedy(self, new_state: State, eps: int):
+    def epsilon_greedy(self, new_state: State, episode_number: int):
+        
+        self.weakens_curiosity(episode_number)
 
-        if eps <= uniform(0.0, 1.0):
+        if uniform(0.0, 1.0) <= self.eps:
             action, value = self.q_table.get_best_action(new_state)
         else:
             r = randint(1, self.num_actions)
             action = r
         return action
 
-    def boltzmann(self, state: State):
+
+    def weakens_curiosity(self, episode_number: int):
+        if episode_number == self.episode_number or self.eps >= 0.999999:
+            return 
+        
+        else:
+            self.episode_number = episode_number
+            self.eps = self.eps / self.eps_factor
+            return
+
+
+    def boltzmann(self, state: State, episode_number: int):
+
+        self.cooling(episode_number)
 
         evals = []
         for action in self.actions:
@@ -147,8 +161,9 @@ class Controller(controller_template.Controller):
     def cooling(self, episode_number: int):
         
         if episode_number == self.episode_number or self.temperature <= 1:
-            return self.temperature
+            return 
         
         else:
             self.episode_number = episode_number
-            return self.cooling_factor * self.temperature
+            self.temperature = self.cooling_factor * self.temperature
+            return

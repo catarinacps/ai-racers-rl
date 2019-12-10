@@ -30,16 +30,9 @@ class State(controller_template.State):
             8 enemy_detected: 0 or 1
             9 checkpoint: 0 or 1
            10 incoming_track: 1 if normal track, 2 if ice track or 0 if car is off track
-           
-           wrong:
-           11 bomb_distance = -1 or 0-???
-           12 bomb_position_angle = -180 to 180
-           13 bomb_detected = 0 or 1
-
-            right:
-            11: detected
-            12: distance
-            13: angle
+           11 bomb_detected = 0 or 1
+           12 bomb_distance = -1 or 0-???
+           13 bomb_position_angle = -180 to 180
 
           (see the specification file/manual for more details)
         :return: A Tuple containing the features you defined
@@ -52,12 +45,9 @@ class State(controller_template.State):
         else:
             check_diff = self.prev_sens[DIST_CHECKPOINT] - self.sensors[DIST_CHECKPOINT]
 
-
         return [check_diff]
 
     
-
-
     def discretize_features(self, features: Tuple) -> Tuple:
         """
         This function should map the (possibly continuous) features (calculated by compute features) and discretize them.
@@ -77,6 +67,7 @@ class State(controller_template.State):
         # dist bomb: binary, either too close to a bomb or not
         dist_bomb = 0 if self.sensors[DIST_BOMB] > 50 else 1
         
+        # angle bomb: ternary, informing which side is dangerous to continue
         if abs(self.sensors[BOMB_ANGLE]) >= 45:
             angle_bomb = 0
         elif self.sensors[BOMB_ANGLE] < 0:
@@ -90,8 +81,7 @@ class State(controller_template.State):
         return (speed, dist_ahead, dist_left, 
                 dist_rigth, dist_bomb, angle_bomb, on_ice, 
                 on_grass,)
-        #return (check_diff, speed, dist_ahead, dist_left, 
-         #       dist_rigth, on_ice, on_grass)
+
 
     @staticmethod
     def discretization_levels() -> Tuple:
@@ -103,7 +93,6 @@ class State(controller_template.State):
         #check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb
         #return [5, 5, 5, 3, 3, 2, 2]
         return [5, 5, 3, 3, 2, 3, 2, 2]
-        #return [5, 5, 5, 3, 3, 2, 2]
 
 
     @staticmethod

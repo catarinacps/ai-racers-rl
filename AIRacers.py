@@ -83,6 +83,9 @@ def parser() -> (argparse.Namespace, list):
                         'Check the \'tracks.py\' file to see the available tracks/create new ones.\n')
     p.add_argument('-f', nargs=1,
                    help='Specifies the file you want to load your Qtable.\n')
+    p.add_argument('-e', nargs=1, type=int, default=100,
+                   help="Specifies the number of races/episodes that will be executed in learning mode, the default "
+                        "value is 100.\n")
     p.add_argument('--myopia', nargs=1, type=float, default=0.9,
                    help='Specifies the myopia factor (as in, the attenuation factor) of the algorithm.\n')
     p.add_argument('--alpha', nargs=1, type=float, default=0.5,
@@ -91,9 +94,6 @@ def parser() -> (argparse.Namespace, list):
                    help='Selects the exploration strategy.\n')
     p.add_argument('--initial-temp', nargs=1, type=float, default=90.0,
                    help='Specifies the initial temperature of the boltzmann function.\n')
-    p.add_argument('-e', nargs=1, type=int, default=100,
-                   help="Specifies the number of races/episodes that will be executed in learning mode, the default "
-                        "value is 100.\n")
     mode_p.add_parser('learn',
                       help='Starts %(prog)s in learning mode. This mode does not render the game to your screen, '
                            'resulting in faster learning.\n')
@@ -137,7 +137,7 @@ if __name__ == '__main__':
     if args.e is None:
         number_of_episodes = 100
     else:
-        number_of_episodes = args.e
+        number_of_episodes = int(args.e[0])
 
     # Starts simulator in play mode
     if str(args.mode) == 'play':
