@@ -96,17 +96,22 @@ class State(controller_template.State):
 
         # dist bomb: binary, either too close to a bomb or not
         dist_bomb = 0 if self.sensors[DIST_BOMB] > 50 else 1
-        # angle bomb: binary, either in a possible colision or not
-        #HELP IDK WHAT TO PUT HERE
-        angle_bomb = 0 if abs(self.sensors[BOMB_ANGLE]) >= 45 else 1
+        
+        if abs(self.sensors[BOMB_ANGLE]) >= 45:
+            angle_bomb = 0
+        elif self.sensors[BOMB_ANGLE] < 0:
+            angle_bomb = 1
+        else:
+            angle_bomb = 2
 
         on_ice = 1 if self.sensors[ON_TRACK] == 2 else 0
         on_grass = 1 if self.sensors[ON_TRACK] == 0 else 0
         #return (check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb)
-        return (check_diff, speed, dist_ahead, dist_left, 
+        return (speed, dist_ahead, dist_left, 
                 dist_rigth, dist_bomb, angle_bomb, on_ice, 
                 on_grass,)
-
+        #return (check_diff, speed, dist_ahead, dist_left, 
+         #       dist_rigth, on_ice, on_grass)
 
     @staticmethod
     def discretization_levels() -> Tuple:
@@ -117,7 +122,8 @@ class State(controller_template.State):
         
         #check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb
         #return [5, 5, 5, 3, 3, 2, 2]
-        return [5, 5, 5, 3, 3, 2, 2, 2, 2]
+        return [5, 5, 3, 3, 2, 3, 2, 2]
+        #return [5, 5, 5, 3, 3, 2, 2]
 
 
     @staticmethod
@@ -230,10 +236,12 @@ class Controller(controller_template.Controller):
             self.q_table = QTable.load(q_table_path)
 
         # Available actions
-        # {1: 'Accel', 2: 'Brake', 3: 'Left', 4: 'Right', 5: 'Nop'}
+        # {1: 'Right', 2: 'Left, 3: 'Accel', 4: 'Brake',  5: 'Nop'}
         self.actions = [1,2,3,4,5]
         self.num_actions = len(self.actions)
-
+        
+        self.checkpoints_reached = 0
+        self.episode_number = 0
 
         # Attenuation of benefit
         self.atten = 0.9
@@ -243,8 +251,8 @@ class Controller(controller_template.Controller):
         # self.exploration_initial = 0.9
         # self.exploration_threshold = 0.5
 
-        self.temperature = 0.9 #???????
-
+        self.temperature = 90
+        self.cooling_factor = 0.99
 
 
     def update_q(self, new_state: State, old_state: State, action: int, reward: float, end_of_race: bool) -> None:
@@ -278,6 +286,7 @@ class Controller(controller_template.Controller):
         :return: The reward to be given to the agent
         """
 
+        
         if (new_state.sensors[ON_TRACK] == 1) or (new_state.sensors[ON_TRACK] == 2):
             on_track = 1
         else:
@@ -285,29 +294,128 @@ class Controller(controller_template.Controller):
 
         
         if new_state.sensors[CHECKPOINT] == 1: # got past a checkpoint
-            diff = MAX_POSSIBLE_DIFF  
+            diff = MAX_POSSIBLE_DIFF
+            
         else:
             diff = old_state.sensors[DIST_CHECKPOINT] - new_state.sensors[DIST_CHECKPOINT]
-        
 
-        if (old_state.sensors[DIST_BOMB] <= 50) and (new_state.sensors[DIST_BOMB] == -1):
-            bomb_exploded = 1
-        else:
-            bomb_exploded = -1
+        bomb_warning = 0
+        if abs(new_state.sensors[BOMB_ANGLE]) < 45:
+            bomb_warning = -15     
 
-        # then we have:
-        # on_track and bomb_exploded belonging to {-1; 1}
-        # and diff [0, 20]
-        reward =    (on_track * 15) + \
-                    (bomb_exploded * 15) + \
-                    diff
+        speed_bonus = 5 if action == 3 else 0
 
-
-        # normalize reward to [0, 1]
-        #reward = (reward - (-35)) / (50 + 35)
-
+        reward =    (on_track * 20) + \
+                    bomb_warning + \
+                    diff + \
+                    speed_bonus
+                    
         return reward
+               
 
+        """
+        new_checkpoint = new_state.sensors[CHECKPOINT]
+
+        old_ontrack = 0 if old_state.sensors[ON_TRACK] == 0 else 1
+        new_ontrack = 0 if new_state.sensors[ON_TRACK] == 0 else 1
+
+        old_lane = old_state.sensors[ON_TRACK]
+        new_lane = new_state.sensors[ON_TRACK]
+        reward = 0
+        """
+
+        """
+        if old_state.sensors[ON_TRACK] == 0 and new_state.sensors[ON_TRACK] == 1:
+            reward += 30
+        elif new_state == 1:
+            reward += 15
+        elif old_state.sensors[ON_TRACK] == 1 and new_state.sensors[ON_TRACK] == 0:
+            reward += -50
+        else:
+            reward += -15
+
+        if new_state.sensors[CHECKPOINT] == 1:
+            difference = 100
+        else:
+            difference = old_state.sensors[DIST_CHECKPOINT] - new_state.sensors[DIST_CHECKPOINT]
+
+        reward += difference
+
+        if abs(new_state.sensors[BOMB_ANGLE]) < 45:
+            if new_state.sensors[BOMB_ANGLE] >= 0:
+                if action not in [3, 4]:
+                    reward += -15
+            if new_state.sensors[BOMB_ANGLE] < 0:
+                if action not in [3, 4]:
+                    reward += -15
+        """
+        """
+        R_ON_TRACK = 10
+        P_NOT_ON_TRACK = -15
+
+        R_BACC_ON_TRACC = 10
+        P_WAYWARD_DRIVER = -10
+
+        R_CROSSED_CHECKPOINT = 30
+        P_CADE_CHECKPOINT = -0
+        R_CLEAR_BOMB = 0
+
+
+        if new_ontrack:
+            reward += R_ON_TRACK
+        else:
+            reward += P_NOT_ON_TRACK
+        if new_checkpoint:
+            reward += R_CROSSED_CHECKPOINT
+        else:
+            reward += P_CADE_CHECKPOINT
+        # if new_bomb_angle == 0:
+        #     reward += R_CLEAR_BOMB
+
+        # Driver was out of bounds but found her way (not by Do Nothing)
+        if new_ontrack and not old_ontrack and action not in [2, 5]:
+            reward += R_BACC_ON_TRACC
+        # Driver was on track but now isn't
+        if old_ontrack and not new_ontrack:
+            if action == 1:
+                # Accelerated
+                reward += 6*P_WAYWARD_DRIVER
+            if action == 2:
+                # Tried to brake at least
+                reward += P_WAYWARD_DRIVER
+            if action in [3,4]:
+                reward += 2*P_WAYWARD_DRIVER
+            if action == 5:
+                # Did nothing
+                reward += 4*P_WAYWARD_DRIVER
+
+        # Driver was out of bounds and still is
+        if not old_ontrack and not new_ontrack:
+            if action in [2,5]:
+                # Hit brakes or Did nothing
+                reward += 6*P_WAYWARD_DRIVER
+
+        diff = old_state.sensors[DIST_CHECKPOINT] - new_state.sensors[DIST_CHECKPOINT]
+        reward += diff
+
+        if old_lane == 0 and new_lane != 0:
+            if new_lane == 1 and action == 3: # turned left and is now too left
+                reward += -10
+            if new_lane == 2 and action == 4: # turned r and is now too r
+                reward += -10
+
+        if old_lane != 0 and new_lane == 0:
+            if old_lane == 1 and action == 4: # was left and turned right
+                reward += 10
+            if old_lane == 2 and action == 3: # was r and turned L
+                reward += 10
+
+        if new_lane == 0:
+            reward += 2
+        if old_lane != 0:
+            reward += -1
+        """
+        return reward
 
     def take_action(self, new_state: State, episode_number: int) -> int:
         """
@@ -321,8 +429,8 @@ class Controller(controller_template.Controller):
 
         # Exploration policies: Greedy, epsilon greedy, Boltzmann roulette
 
-        #action = self.boltzmann(new_state, episode_number+1) #+1 to avoid division by zero
-        action = self.epsilon_greedy(new_state, 0.9)
+        action = self.boltzmann(new_state)
+        self.temperature = self.cooling(episode_number)
         return action
 
     def epsilon_greedy(self, new_state: State, eps: int):
@@ -334,22 +442,36 @@ class Controller(controller_template.Controller):
             action = r
         return action
 
-    def boltzmann(self, state: State, temperature: int):
+    def boltzmann(self, state: State):
 
         evals = []
         for action in self.actions:
             q_value = self.q_table.get_q_value(state, action)
-            evals.append(exp(q_value/temperature))
+            try:
+                evals.append(exp(q_value/self.temperature))
+            except:
+                print("q val:", q_value)
+                print("temp:", self.temperature)
+                input()
 
         evals = [x/sum(evals) for x in evals]
-        target = uniform(0.0, 1.0)
+        
+        target = uniform(0, 1)
         roulette = 0
-        chosen_action = self.actions[0]
 
-        for i in range(self.num_actions):
+        for i in range(1, self.num_actions+1):
 
-            roulette += evals[i]
+            roulette += evals[i-1]
             if roulette >= target:
-                chosen_action = i
+                return i
+                
 
-        return chosen_action
+
+    def cooling(self, episode_number: int):
+        
+        if episode_number == self.episode_number or self.temperature <= 1:
+            return self.temperature
+        
+        else:
+            self.episode_number = episode_number
+            return self.cooling_factor * self.temperature
