@@ -73,8 +73,8 @@ class State(controller_template.State):
             check_diff = self.prev_sens[DIST_CHECKPOINT] - self.sensors[DIST_CHECKPOINT]
 
 
-        return [check_diff]
-
+        # return [check_diff]
+        return [self.sensors[CHECKPOINT], self.sensors[ON_TRACK], self.sensors[BOMB_ANGLE]]
     
 
 
@@ -103,9 +103,30 @@ class State(controller_template.State):
         on_ice = 1 if self.sensors[ON_TRACK] == 2 else 0
         on_grass = 1 if self.sensors[ON_TRACK] == 0 else 0
         #return (check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb)
-        return (check_diff, speed, dist_ahead, dist_left, 
-                dist_rigth, dist_bomb, angle_bomb, on_ice, 
-                on_grass,)
+        #return (check_diff, speed, dist_ahead, dist_left,
+        #        dist_rigth, dist_bomb, angle_bomb, on_ice,
+        #        on_grass,)
+
+        if (self.sensors[DIST_BOMB] <= 50 and on_ice == 0) or (self.sensors[DIST_BOMB] <= 90 and on_ice == 1):
+            if self.sensors[DIST_BOMB] <= 50 and abs(self.sensors[BOMB_ANGLE]) < 45:
+                d_bomb_angle = 1 if self.sensors[BOMB_ANGLE] >= 0 else 2
+            else:
+                d_bomb_angle = 0
+        else:
+            d_bomb_angle = 0
+
+        d_on_track = 0 if self.sensors[ON_TRACK] == 0 else 1
+        d_checkpoint = self.sensors[CHECKPOINT]
+
+        if self.sensors[DIST_LEFT] < 35:
+            d_lane = 1
+        elif self.sensors[DIST_RIGHT] < 35:
+            d_lane = 2
+        else:
+            d_lane = 0
+
+        return (d_checkpoint, d_on_track, d_lane)
+
 
 
     @staticmethod
@@ -117,8 +138,8 @@ class State(controller_template.State):
         
         #check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb
         #return [5, 5, 5, 3, 3, 2, 2]
-        return [5, 5, 5, 3, 3, 2, 2, 2, 2]
-
+       #return [5, 5, 5, 3, 3, 2, 2, 2, 2]
+        return [2,2,3]
 
     @staticmethod
     def enumerate_all_possible_states() -> List:
@@ -278,6 +299,23 @@ class Controller(controller_template.Controller):
         :return: The reward to be given to the agent
         """
 
+        old_disc = old_state.discretized_state
+        new_disc = new_state.discretized_state
+
+
+        old_checkpoint = old_disc[0]
+        new_checkpoint = new_disc[0]
+
+        old_ontrack = old_disc[1]
+        new_ontrack = new_disc[1]
+
+        old_lane = old_disc[2]
+        new_lane = new_disc[2]
+
+       # old_bomb_angle = old_disc[3]
+       # new_bomb_angle = new_disc[3]
+
+
         if (new_state.sensors[ON_TRACK] == 1) or (new_state.sensors[ON_TRACK] == 2):
             on_track = 1
         else:
@@ -305,6 +343,100 @@ class Controller(controller_template.Controller):
 
         # normalize reward to [0, 1]
         #reward = (reward - (-35)) / (50 + 35)
+        reward = 0
+        if old_state.sensors[ON_TRACK] == 0 and new_state.sensors[ON_TRACK] == 1:
+            reward += 30
+        elif new_state == 1:
+            reward += 15
+        elif old_state.sensors[ON_TRACK] == 1 and new_state.sensors[ON_TRACK] == 0:
+            reward += -50
+        else:
+            reward += -15
+
+        if new_state.sensors[CHECKPOINT] == 1:
+            difference = 100
+        else:
+            difference = old_state.sensors[DIST_CHECKPOINT] - new_state.sensors[DIST_CHECKPOINT]
+
+        reward += difference
+
+        if abs(new_state.sensors[BOMB_ANGLE]) < 45:
+            if new_state.sensors[BOMB_ANGLE] >= 0:
+                if action not in [3, 4]:
+                    reward += -15
+            if new_state.sensors[BOMB_ANGLE] < 0:
+                if action not in [3, 4]:
+                    reward += -15
+
+        R_ON_TRACK = 10
+        P_NOT_ON_TRACK = -15
+
+        R_BACC_ON_TRACC = 10
+        P_WAYWARD_DRIVER = -10
+
+        R_CROSSED_CHECKPOINT = 30
+        P_CADE_CHECKPOINT = -0
+        R_CLEAR_BOMB = 0
+
+        reward = 0
+        if new_ontrack:
+            reward += R_ON_TRACK
+        else:
+            reward += P_NOT_ON_TRACK
+        if new_checkpoint:
+            reward += R_CROSSED_CHECKPOINT
+        else:
+            reward += P_CADE_CHECKPOINT
+        # if new_bomb_angle == 0:
+        #     reward += R_CLEAR_BOMB
+
+        # Driver was out of bounds but found her way (not by Do Nothing)
+        if new_ontrack and not old_ontrack and action not in [2, 5]:
+            reward += R_BACC_ON_TRACC
+        # Driver was on track but now isn't
+        if old_ontrack and not new_ontrack:
+            if action == 1:
+                # Accelerated
+                reward += 6*P_WAYWARD_DRIVER
+            if action == 2:
+                # Tried to brake at least
+                reward += P_WAYWARD_DRIVER
+            if action in [3,4]:
+                reward += 2*P_WAYWARD_DRIVER
+            if action == 5:
+                # Did nothing
+                reward += 4*P_WAYWARD_DRIVER
+
+        # Driver was out of bounds and still is
+        if not old_ontrack and not new_ontrack:
+            if action in [2,5]:
+                # Hit brakes or Did nothing
+                reward += 6*P_WAYWARD_DRIVER
+
+        diff = old_state.sensors[DIST_CHECKPOINT] - new_state.sensors[DIST_CHECKPOINT]
+        reward += diff
+
+        if old_lane == 0 and new_lane != 0:
+            if new_lane == 1 and action == 3: # turned left and is now too left
+                reward += -10
+            if new_lane == 2 and action == 4: # turned r and is now too r
+                reward += -10
+
+        if old_lane != 0 and new_lane == 0:
+            if old_lane == 1 and action == 4: # was left and turned right
+                reward += 10
+            if old_lane == 2 and action == 3: # was r and turned L
+                reward += 10
+
+        if new_lane == 0:
+            reward += 2
+        if old_lane != 0:
+            reward += -1
+
+        # if old_bomb_angle != 0 and new_bomb_angle == 0:
+        #     #desviou
+        #     if old_bomb_angle != 0 and action in [3,4]:
+        #         reward += 10
 
         return reward
 
@@ -322,7 +454,7 @@ class Controller(controller_template.Controller):
         # Exploration policies: Greedy, epsilon greedy, Boltzmann roulette
 
         #action = self.boltzmann(new_state, episode_number+1) #+1 to avoid division by zero
-        action = self.epsilon_greedy(new_state, 0.9)
+        action = self.epsilon_greedy(new_state, 0.5)
         return action
 
     def epsilon_greedy(self, new_state: State, eps: int):
