@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
 This module collects command line arguments and prepares everything needed to run the simulator/game
 
@@ -81,13 +83,20 @@ def parser() -> (argparse.Namespace, list):
                         'Check the \'tracks.py\' file to see the available tracks/create new ones.\n')
     p.add_argument('-f', nargs=1,
                    help='Specifies the file you want to load your Qtable.\n')
-    p.add_argument('-e', nargs=1, type=int,
+    p.add_argument('--myopia', nargs=1, type=float, default=0.9,
+                   help='Specifies the myopia factor (as in, the attenuation factor) of the algorithm.\n')
+    p.add_argument('--alpha', nargs=1, type=float, default=0.5,
+                   help='Specifies the alpha factor of the algorithm.\n')
+    p.add_argument('--strategy', nargs=1, choices=['greedy', 'epsilon', 'boltzmann'], default='epsilon',
+                   help='Selects the exploration strategy.\n')
+    p.add_argument('--initial-temp', nargs=1, type=float, default=90.0,
+                   help='Specifies the initial temperature of the boltzmann function.\n')
+    p.add_argument('-e', nargs=1, type=int, default=100,
                    help="Specifies the number of races/episodes that will be executed in learning mode, the default "
                         "value is 100.\n")
     mode_p.add_parser('learn',
                       help='Starts %(prog)s in learning mode. This mode does not render the game to your screen, '
-                           'resulting in '
-                           'faster learning.\n')
+                           'resulting in faster learning.\n')
     mode_p.add_parser('evaluate',
                       help='Starts %(prog)s in evaluation mode. This mode runs your AI with the weights/parameters '
                            'passed as parameter \n')
@@ -99,6 +108,7 @@ def parser() -> (argparse.Namespace, list):
     arguments, leftovers = p.parse_known_args()
     p.parse_args()
     return arguments, leftovers
+
 
 if __name__ == '__main__':
 
@@ -127,7 +137,7 @@ if __name__ == '__main__':
     if args.e is None:
         number_of_episodes = 100
     else:
-        number_of_episodes = int(args.e[0])
+        number_of_episodes = args.e
 
     # Starts simulator in play mode
     if str(args.mode) == 'play':
@@ -137,14 +147,14 @@ if __name__ == '__main__':
     # Starts simulator in evaluate mode
     elif str(args.mode) == 'evaluate':
         simulator.show_simulation = True
-        ctrl = Controller(table_path)
+        ctrl = Controller(table_path, args.myopia, args.alpha, args.initial_temp)
         sim = simulator.Simulation(chosen_track, bot_type)
         sim.evaluate(ctrl)
     # Starts simulator in learn mode and saves the best results in a file
     elif str(args.mode) == 'learn':
         simulator.show_simulation = False
         simulation = simulator.Simulation(chosen_track, bot_type)
-        ctrl = Controller(table_path)
+        ctrl = Controller(table_path, args.myopia, args.alpha, args.initial_temp)
         simulation.learn(ctrl, number_of_episodes)
     elif str(args.mode) == 'comp':
         simulator.show_simulation = True
@@ -159,7 +169,7 @@ if __name__ == '__main__':
 
             print("Starting race in %s\n" % current_track.name)
 
-            player_1 = Controller(player_1_path)
+            player_1 = Controller(player_1_path, args.myopia, args.alpha, args.initial_temp)
             player_2 = Controller2(player_2_path)
 
             sim = simulator.Simulation(current_track, 'player2')
@@ -188,7 +198,7 @@ if __name__ == '__main__':
 
             current_track.car1_position, current_track.car2_position = current_track.car2_position, current_track.car1_position
 
-            player_1 = Controller(player_1_path)
+            player_1 = Controller(player_1_path, args.myopia, args.alpha, args.initial_temp)
             player_2 = Controller2(player_2_path)
 
             sim = simulator.Simulation(current_track, 'player2')
@@ -215,6 +225,3 @@ if __name__ == '__main__':
             print("Player 2 wins!")
         else:
             print("Oh no! It's a tie!")
-
-
-
