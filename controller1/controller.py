@@ -9,7 +9,7 @@ NUM_OF_ACTIONS = 5
 MAX_POSSIBLE_DIFF = 20  # maximum speed going straigth towards the checkpoint
 
 class Controller(controller_template.Controller):
-    def __init__(self, q_table_path: str, atten: float, alpha: float, init_temp: float):
+    def __init__(self, q_table_path: str, atten: float, alpha: float, init_temp: float, strategy: str):
         if q_table_path is None:
             self.q_table = QTable()
         else:
@@ -29,6 +29,8 @@ class Controller(controller_template.Controller):
         self.alpha = alpha
         
         # Exploration
+        self.strategy = strategy
+
         self.temperature = init_temp  
         self.cooling_factor = 0.99
 
@@ -100,12 +102,13 @@ class Controller(controller_template.Controller):
         :param episode_number: current episode/race during the training period
         :return: The action the car chooses to execute
         """
-        # exploration = initial_exploration**log(episode_number)
-        # if exploration > exploration_threshold:
 
-        # Exploration policies: Greedy, epsilon greedy, Boltzmann roulette
-
-        action = self.epsilon_greedy(new_state, episode_number)
+        # Exploration policies: Epsilon greedy, Boltzmann roulette
+        if self.strategy == "boltzmann":
+            action = self.boltzmann(new_state, episode_number)
+        else:
+            action = self.epsilon_greedy(new_state, episode_number)
+        # oh dear inheritance, i miss you
 
         return action
 
