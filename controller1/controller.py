@@ -125,7 +125,7 @@ class Controller(controller_template.Controller):
 
 
     def weakens_curiosity(self, episode_number: int):
-        if episode_number == self.episode_number or self.eps >= 0.999999:
+        if episode_number == self.episode_number or self.eps >= 0.98:
             return 
         
         else:
