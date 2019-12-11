@@ -118,9 +118,9 @@ class State(controller_template.State):
         d_on_track = 0 if self.sensors[ON_TRACK] == 0 else 1
         d_checkpoint = self.sensors[CHECKPOINT]
 
-        if self.sensors[DIST_LEFT] < 35:
+        if self.sensors[DIST_LEFT] < 30:
             d_lane = 1
-        elif self.sensors[DIST_RIGHT] < 35:
+        elif self.sensors[DIST_RIGHT] < 30:
             d_lane = 2
         else:
             d_lane = 0
