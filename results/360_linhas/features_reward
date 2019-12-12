@@ -1,0 +1,27 @@
+features:
+
+ dist_bomb = 0 if self.sensors[DIST_BOMB] > 50 else 1
+        if abs(self.sensors[BOMB_ANGLE]) >= 45:
+            angle_bomb = 0
+        elif self.sensors[BOMB_ANGLE] < 0:
+            angle_bomb = 1
+        else:
+            angle_bomb = 2
+        
+        # ternary: safe spot, dangerous spot to the left, dangerous spot to the right
+        bomb_warning = dist_bomb * angle_bomb
+
+
+        danger_left = 1 if self.sensors[DIST_LEFT] < 15 else 0
+        danger_right = 1 if self.sensors[DIST_RIGHT] < 15 else 0
+
+(speed, dist_ahead, danger_left, 
+                danger_right, bomb_warning, on_grass)
+[5, 3, 2, 2, 3, 2]
+
+
+reward:
+mesma coisa de antes só que sem a info das lane (centralidade)
+
+
+

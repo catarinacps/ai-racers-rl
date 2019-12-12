@@ -57,7 +57,11 @@ class State(controller_template.State):
         # ternary: safe spot, dangerous spot to the left, dangerous spot to the right
         bomb_warning = dist_bomb * angle_bomb
 
-        return [check_diff, bomb_warning]
+
+        danger_left = 1 if self.sensors[DIST_LEFT] < 15 else 0
+        danger_right = 1 if self.sensors[DIST_RIGHT] < 15 else 0
+
+        return [check_diff, bomb_warning, danger_left, danger_right]
 
     
     def discretize_features(self, features: Tuple) -> Tuple:
@@ -70,17 +74,21 @@ class State(controller_template.State):
         # we consider a 5 levels discretization having the levels 0, 1, 2, 3 and 4
         #check_diff = features[0] // 4 if features[0] < 20 else 4 
         speed = self.sensors[SPEED] // 40 if self.sensors[SPEED] < 200 else 4 
-        dist_ahead = self.sensors[DIST_CENTER] // 20 if self.sensors[DIST_CENTER] < 100 else 4
+        dist_ahead = self.sensors[DIST_CENTER] // 33 if self.sensors[DIST_CENTER] < 99 else 2
 
         # we consider a 3 levels discretization having the levels 0, 1 and 2
-        dist_left = self.sensors[DIST_LEFT] // 33 if self.sensors[DIST_LEFT] < 99 else 2
-        dist_rigth = self.sensors[DIST_RIGHT] // 33 if self.sensors[DIST_RIGHT] < 99 else 2
+        #dist_left = self.sensors[DIST_LEFT] // 33 if self.sensors[DIST_LEFT] < 99 else 2
+        #dist_rigth = self.sensors[DIST_RIGHT] // 33 if self.sensors[DIST_RIGHT] < 99 else 2
+
+
 
         on_grass = 1 if self.sensors[ON_TRACK] == 0 else 0
         bomb_warning = features[1]
+        danger_left = features[2]
+        danger_right = features[3]
 
-        return (speed, dist_ahead, dist_left, 
-                dist_rigth, bomb_warning, on_grass)
+        return (speed, dist_ahead, danger_left, 
+                danger_right, bomb_warning, on_grass)
 
 
     @staticmethod
@@ -90,7 +98,7 @@ class State(controller_template.State):
         :return: A tuple containing the discretization levels of each feature
         """
         
-        return [5, 5, 3, 3, 3, 2]
+        return [5, 3, 2, 2, 3, 2]
 
 
     @staticmethod
