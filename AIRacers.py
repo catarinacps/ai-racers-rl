@@ -83,17 +83,19 @@ def parser() -> (argparse.Namespace, list):
                         'Check the \'tracks.py\' file to see the available tracks/create new ones.\n')
     p.add_argument('-f', nargs=1,
                    help='Specifies the file you want to load your Qtable.\n')
+    p.add_argument('-e', nargs=1, type=int,
+                   help="Specifies the number of races/episodes that will be executed in learning mode, the default "
+                        "value is 100.\n")
     p.add_argument('--myopia', nargs=1, type=float, default=0.9,
                    help='Specifies the myopia factor (as in, the attenuation factor) of the algorithm.\n')
     p.add_argument('--alpha', nargs=1, type=float, default=0.5,
                    help='Specifies the alpha factor of the algorithm.\n')
-    p.add_argument('--strategy', nargs=1, choices=['greedy', 'epsilon', 'boltzmann'], default='epsilon',
+    p.add_argument('--strategy', nargs=1, choices=['epsilon', 'boltzmann'], default='boltzmann',
                    help='Selects the exploration strategy.\n')
     p.add_argument('--initial-temp', nargs=1, type=float, default=90.0,
                    help='Specifies the initial temperature of the boltzmann function.\n')
-    p.add_argument('-e', nargs=1, type=int, default=100,
-                   help="Specifies the number of races/episodes that will be executed in learning mode, the default "
-                        "value is 100.\n")
+    p.add_argument('--csv', nargs=1, type=str, default=["learning_progress"],
+                   help='Specifies the name of the .csv file where the learning progress will be saved.\n')
     mode_p.add_parser('learn',
                       help='Starts %(prog)s in learning mode. This mode does not render the game to your screen, '
                            'resulting in faster learning.\n')
@@ -137,24 +139,24 @@ if __name__ == '__main__':
     if args.e is None:
         number_of_episodes = 100
     else:
-        number_of_episodes = args.e
+        number_of_episodes = int(args.e[0])
 
     # Starts simulator in play mode
     if str(args.mode) == 'play':
         simulator.show_simulation = True
-        simulation = simulator.Simulation(chosen_track, bot_type)
+        simulation = simulator.Simulation(chosen_track, bot_type, args.csv)
         play(chosen_track, bot_type)
     # Starts simulator in evaluate mode
     elif str(args.mode) == 'evaluate':
         simulator.show_simulation = True
-        ctrl = Controller(table_path, args.myopia, args.alpha, args.initial_temp)
-        sim = simulator.Simulation(chosen_track, bot_type)
+        ctrl = Controller(table_path, args.myopia, args.alpha, args.initial_temp, args.strategy)
+        sim = simulator.Simulation(chosen_track, bot_type, args.csv)
         sim.evaluate(ctrl)
     # Starts simulator in learn mode and saves the best results in a file
     elif str(args.mode) == 'learn':
         simulator.show_simulation = False
-        simulation = simulator.Simulation(chosen_track, bot_type)
-        ctrl = Controller(table_path, args.myopia, args.alpha, args.initial_temp)
+        simulation = simulator.Simulation(chosen_track, bot_type, args.csv)
+        ctrl = Controller(table_path, args.myopia, args.alpha, args.initial_temp, args.strategy)
         simulation.learn(ctrl, number_of_episodes)
     elif str(args.mode) == 'comp':
         simulator.show_simulation = True
@@ -169,10 +171,10 @@ if __name__ == '__main__':
 
             print("Starting race in %s\n" % current_track.name)
 
-            player_1 = Controller(player_1_path, args.myopia, args.alpha, args.initial_temp)
+            player_1 = Controller(player_1_path, args.myopia, args.alpha, args.initial_temp, args.strategy)
             player_2 = Controller2(player_2_path)
 
-            sim = simulator.Simulation(current_track, 'player2')
+            sim = simulator.Simulation(current_track, 'player2', args.csv)
             sim.evaluate_comp(player_1, player_2)
 
             print("Player 1 score: %d" % sim.car1.score)
@@ -198,10 +200,10 @@ if __name__ == '__main__':
 
             current_track.car1_position, current_track.car2_position = current_track.car2_position, current_track.car1_position
 
-            player_1 = Controller(player_1_path, args.myopia, args.alpha, args.initial_temp)
+            player_1 = Controller(player_1_path, args.myopia, args.alpha, args.initial_temp, args.strategy)
             player_2 = Controller2(player_2_path)
 
-            sim = simulator.Simulation(current_track, 'player2')
+            sim = simulator.Simulation(current_track, 'player2', args.csv)
             sim.evaluate_comp(player_1, player_2)
 
             print("Player 1 score: %d" % sim.car1.score)

@@ -9,6 +9,7 @@ Attributes:
 import math
 import random
 import sys
+import os
 
 import numpy as np
 import pygame
@@ -24,6 +25,7 @@ from controller2.controller import Controller as Controller2
 from controller2.controller import State as State2
 import datetime, time
 
+import csv
 # PyGame screen dimensions
 width = 1000
 height = 700
@@ -932,12 +934,14 @@ class _Bomb(_Car):
 
 
 class Simulation:
-    def __init__(self, track, bot_type):
+    def __init__(self, track, bot_type, csv_file_name):
         """
         Handles simulation and GUI
         :param track: Track object witch configures the scenario
         :param bot_type: Type of bot to be alongside user, can be set to None for no bot
         """
+
+        self.csvpath = "./results/"+csv_file_name[0]+".csv"
 
         # Initialize GUI if requested
         if show_simulation:
@@ -1059,6 +1063,7 @@ class Simulation:
                 frame_number += 1
 
             print("episode",episode_count,"score",self.car1.score)
+            self.save_learning_progress(controller, episode_count)
             if self.car1.score >= best_score:
                 best_score = self.car1.score
                 output = "./params/%s_%d.txt" % (datetime.datetime.fromtimestamp(time.time()).strftime('%Y%m%d%H%M%S'),
@@ -1071,6 +1076,32 @@ class Simulation:
         controller.q_table.save(output)
 
         pass
+    
+
+    def save_learning_progress(self, controller, episode_count):
+        
+        if os.path.isfile(self.csvpath):
+            
+            row = [episode_count, self.car1.score,
+                    controller.eps, controller.temperature]
+
+            with open(self.csvpath, "a", newline='') as csv_file:
+                writer = csv.writer(csv_file, delimiter=',')
+                writer.writerow(row)
+        else:
+            first_row = ["episode", "score",
+                        "eps", "temperature",
+                        "strategy = "+str(controller.strategy),
+                        "alpha = "+str(controller.alpha), 
+                        "atten = "+str(controller.atten)]
+
+            second_row = [episode_count, self.car1.score,
+                          controller.eps, controller.temperature]
+
+            with open(self.csvpath, "w", newline='') as csv_file:
+                writer = csv.writer(csv_file, delimiter=',')
+                writer.writerows([first_row, second_row])
+
 
     def evaluate(self, controller: Controller) -> None:
         frame_number = 0
