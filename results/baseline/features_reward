@@ -1,0 +1,32 @@
+baseline:
+
+features:
+(speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb, on_ice, on_grass)
+[5, 	  5, 		3, 	   3, 		2, 	  3, 	     2,	     2]
+
+
+reward:
+if (new_state.sensors[ON_TRACK] == 1) or (new_state.sensors[ON_TRACK] == 2):
+            on_track = 1
+        else:
+            on_track = -1
+
+
+        if new_state.sensors[CHECKPOINT] == 1: # got past a checkpoint
+            diff = MAX_POSSIBLE_DIFF
+        else:
+            diff = old_state.sensors[DIST_CHECKPOINT] - new_state.sensors[DIST_CHECKPOINT]
+
+
+        bomb_warning = 0
+        if abs(new_state.sensors[BOMB_ANGLE]) < 45:
+            bomb_warning = -15     
+
+        speed_bonus = 5 if action == 3 else 0
+
+        reward =    (on_track * 20) + \
+                    bomb_warning + \
+                    diff + \
+                    speed_bonus
+
+
