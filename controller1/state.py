@@ -45,7 +45,19 @@ class State(controller_template.State):
         else:
             check_diff = self.prev_sens[DIST_CHECKPOINT] - self.sensors[DIST_CHECKPOINT]
 
-        return [check_diff]
+
+        dist_bomb = 0 if self.sensors[DIST_BOMB] > 50 else 1
+        if abs(self.sensors[BOMB_ANGLE]) >= 45:
+            angle_bomb = 0
+        elif self.sensors[BOMB_ANGLE] < 0:
+            angle_bomb = 1
+        else:
+            angle_bomb = 2
+        
+        # ternary: safe spot, dangerous spot to the left, dangerous spot to the right
+        bomb_warning = dist_bomb * angle_bomb
+
+        return [check_diff, bomb_warning]
 
     
     def discretize_features(self, features: Tuple) -> Tuple:
@@ -56,7 +68,7 @@ class State(controller_template.State):
         """
 
         # we consider a 5 levels discretization having the levels 0, 1, 2, 3 and 4
-        check_diff = features[0] // 4 if features[0] < 20 else 4 
+        #check_diff = features[0] // 4 if features[0] < 20 else 4 
         speed = self.sensors[SPEED] // 40 if self.sensors[SPEED] < 200 else 4 
         dist_ahead = self.sensors[DIST_CENTER] // 20 if self.sensors[DIST_CENTER] < 100 else 4
 
@@ -64,23 +76,11 @@ class State(controller_template.State):
         dist_left = self.sensors[DIST_LEFT] // 33 if self.sensors[DIST_LEFT] < 99 else 2
         dist_rigth = self.sensors[DIST_RIGHT] // 33 if self.sensors[DIST_RIGHT] < 99 else 2
 
-        # dist bomb: binary, either too close to a bomb or not
-        dist_bomb = 0 if self.sensors[DIST_BOMB] > 50 else 1
-        
-        # angle bomb: ternary, informing which side is dangerous to continue
-        if abs(self.sensors[BOMB_ANGLE]) >= 45:
-            angle_bomb = 0
-        elif self.sensors[BOMB_ANGLE] < 0:
-            angle_bomb = 1
-        else:
-            angle_bomb = 2
-
-        on_ice = 1 if self.sensors[ON_TRACK] == 2 else 0
         on_grass = 1 if self.sensors[ON_TRACK] == 0 else 0
-        
-        return (check_diff, speed, dist_ahead, dist_left, 
-                dist_rigth, dist_bomb, angle_bomb,
-                on_ice, on_grass)
+        bomb_warning = features[1]
+
+        return (speed, dist_ahead, dist_left, 
+                dist_rigth, bomb_warning, on_grass)
 
 
     @staticmethod
@@ -90,7 +90,7 @@ class State(controller_template.State):
         :return: A tuple containing the discretization levels of each feature
         """
         
-        return [5, 5, 5, 3, 3, 2, 3, 2, 2]
+        return [5, 5, 3, 3, 3, 2]
 
 
     @staticmethod

@@ -85,9 +85,6 @@ class Controller(controller_template.Controller):
         new_ontrack = 0 if new_state.sensors[ON_TRACK] == 0 else 1
         old_ontrack = 0 if old_state.sensors[ON_TRACK] == 0 else 1
 
-        new_lane = new_state.sensors[ON_TRACK]
-        old_lane = old_state.sensors[ON_TRACK]
-
 
         reward = 0
         if new_ontrack:
@@ -132,15 +129,6 @@ class Controller(controller_template.Controller):
             reward += URGE_CHECKPOINT
             diff = old_state.sensors[DIST_CHECKPOINT] - new_state.sensors[DIST_CHECKPOINT]
             reward += 2 * diff
-
-        if old_lane == 0 and new_lane != 0:
-            if new_lane == 1 and action == ACT_LEFT:  # turned left and is now too left
-                reward += -10
-            if new_lane == 2 and action == ACT_RIGHT:  # turned r and is now too r
-                reward += -10
-
-        if new_lane == 0:
-            reward += 2
 
         reward += new_state.sensors[SPEED] / 5
         
