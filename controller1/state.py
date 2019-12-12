@@ -77,10 +77,10 @@ class State(controller_template.State):
 
         on_ice = 1 if self.sensors[ON_TRACK] == 2 else 0
         on_grass = 1 if self.sensors[ON_TRACK] == 0 else 0
-        #return (check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb)
-        return (speed, dist_ahead, dist_left, 
-                dist_rigth, dist_bomb, angle_bomb, on_ice, 
-                on_grass,)
+        
+        return (check_diff, speed, dist_ahead, dist_left, 
+                dist_rigth, dist_bomb, angle_bomb,
+                on_ice, on_grass)
 
 
     @staticmethod
@@ -90,9 +90,7 @@ class State(controller_template.State):
         :return: A tuple containing the discretization levels of each feature
         """
         
-        #check_diff, speed, dist_ahead, dist_left, dist_rigth, dist_bomb, angle_bomb
-        #return [5, 5, 5, 3, 3, 2, 2]
-        return [5, 5, 3, 3, 2, 3, 2, 2]
+        return [5, 5, 5, 3, 3, 2, 3, 2, 2]
 
 
     @staticmethod
