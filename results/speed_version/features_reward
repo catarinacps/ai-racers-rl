@@ -1,0 +1,86 @@
+features:
+(check_diff, speed, dist_ahead, dist_left, 
+                dist_rigth, dist_bomb, angle_bomb,
+                on_ice, on_grass)
+[5, 5, 5, 3, 3, 2, 3, 2, 2]
+
+
+reward:
+
+
+ R_ON_TRACK = 10
+        P_NOT_ON_TRACK = -15
+        R_BACK_ON_TRACC = 10
+        P_WAYWARD_DRIVER = -10
+
+        R_CROSSED_CHECKPOINT = 30
+        URGE_CHECKPOINT = -10
+        
+        BOMB_WARNING = -15
+
+        new_ontrack = 0 if new_state.sensors[ON_TRACK] == 0 else 1
+        old_ontrack = 0 if old_state.sensors[ON_TRACK] == 0 else 1
+
+        new_lane = new_state.sensors[ON_TRACK]
+        old_lane = old_state.sensors[ON_TRACK]
+
+        new_checkpoint = new_state.sensors[CHECKPOINT]
+
+        reward = 0
+        if new_ontrack:
+            reward += R_ON_TRACK
+        else:
+            reward += P_NOT_ON_TRACK
+            
+
+        # Driver was out of bounds but found her way (not by Do Nothing)
+        if new_ontrack and not old_ontrack and action not in [ACT_BRAKE, ACT_NONE]:
+            reward += R_BACK_ON_TRACC
+        # Driver was on track but now isn't
+        if old_ontrack and not new_ontrack:
+            if action == ACT_ACCEL:
+                # Accelerated
+                reward += 6 * P_WAYWARD_DRIVER
+            if action == ACT_BRAKE:
+                # Tried to brake at least
+                reward += 2 * P_WAYWARD_DRIVER
+            if action in [ACT_LEFT, ACT_RIGHT]:
+                reward += P_WAYWARD_DRIVER
+            if action == ACT_NONE:
+                # Did nothing
+                reward += 4 * P_WAYWARD_DRIVER
+
+        # Driver was out of bounds and still is
+        if not old_ontrack and not new_ontrack:
+            if action in [ACT_BRAKE, ACT_NONE]:
+                # Hit brakes or Did nothing
+                reward += 6 * P_WAYWARD_DRIVER
+
+        # Too close and pointing to a bomb
+        if (abs(new_state.sensors[BOMB_ANGLE]) < 45) and (new_state.sensors[BOMB_NEAR] < 30):
+            reward += BOMB_WARNING
+        # Close but not pointing: avoiding
+        if (abs(new_state.sensors[BOMB_ANGLE]) > 45) and (new_state.sensors[BOMB_NEAR] < 30):
+            reward += -BOMB_WARNING
+
+        if new_state.sensors[CHECKPOINT] == 1: # got past a checkpoint
+            reward += MAX_POSSIBLE_DIFF*2
+        else:
+            reward += URGE_CHECKPOINT
+            diff = old_state.sensors[DIST_CHECKPOINT] - new_state.sensors[DIST_CHECKPOINT]
+            reward += 2 * diff
+
+        if old_lane == 0 and new_lane != 0:
+            if new_lane == 1 and action == ACT_LEFT:  # turned left and is now too left
+                reward += -10
+            if new_lane == 2 and action == ACT_RIGHT:  # turned r and is now too r
+                reward += -10
+
+        if new_lane == 0:
+            reward += 2
+
+        reward += new_state.sensors[SPEED]
+        
+        return reward
+
+

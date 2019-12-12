@@ -37,7 +37,7 @@ class Controller(controller_template.Controller):
         self.strategy = strategy
 
         self.temperature = init_temp  
-        self.cooling_factor = 0.999
+        self.cooling_factor = 0.995
 
         self.eps = 0.1
         self.eps_factor = 0.999
@@ -77,7 +77,7 @@ class Controller(controller_template.Controller):
         R_BACK_ON_TRACC = 10
         P_WAYWARD_DRIVER = -10
 
-        R_CROSSED_CHECKPOINT = 30
+
         URGE_CHECKPOINT = -10
         
         BOMB_WARNING = -15
@@ -88,7 +88,6 @@ class Controller(controller_template.Controller):
         new_lane = new_state.sensors[ON_TRACK]
         old_lane = old_state.sensors[ON_TRACK]
 
-        new_checkpoint = new_state.sensors[CHECKPOINT]
 
         reward = 0
         if new_ontrack:
@@ -143,7 +142,7 @@ class Controller(controller_template.Controller):
         if new_lane == 0:
             reward += 2
 
-        reward += new_state.sensors[SPEED] / 10
+        reward += new_state.sensors[SPEED] / 5
         
         return reward
                
