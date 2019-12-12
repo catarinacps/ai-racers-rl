@@ -1,0 +1,19 @@
+#+title: Lab-book do ai-racers-rl
+#+author: Henrique Silva
+#+email: hcpsilva@inf.ufrgs.br
+#+infojs_opt:
+#+property: session *R*
+#+property: cache yes
+#+property: results graphics
+#+property: exports both
+#+property: tangle yes
+
+Existe pra que eu plote coisas.
+
+* Simple learning progress graph
+
+Lets start by loading the packages up.
+
+#+begin_src R :session :results output :exports both
+suppressMessages(library(tidyverse))
+#+end_src
