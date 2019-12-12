@@ -86,13 +86,13 @@ def parser() -> (argparse.Namespace, list):
     p.add_argument('-e', nargs=1, type=int,
                    help="Specifies the number of races/episodes that will be executed in learning mode, the default "
                         "value is 100.\n")
-    p.add_argument('--myopia', nargs=1, type=float, default=0.9,
+    p.add_argument('--myopia', nargs=1, type=float, default=[0.9],
                    help='Specifies the myopia factor (as in, the attenuation factor) of the algorithm.\n')
-    p.add_argument('--alpha', nargs=1, type=float, default=0.5,
+    p.add_argument('--alpha', nargs=1, type=float, default=[0.5],
                    help='Specifies the alpha factor of the algorithm.\n')
     p.add_argument('--strategy', nargs=1, choices=['epsilon', 'boltzmann'], default='boltzmann',
                    help='Selects the exploration strategy.\n')
-    p.add_argument('--initial-temp', nargs=1, type=float, default=90.0,
+    p.add_argument('--initial-temp', nargs=1, type=float, default=[90.0],
                    help='Specifies the initial temperature of the boltzmann function.\n')
     p.add_argument('--csv', nargs=1, type=str, default=["learning_progress"],
                    help='Specifies the name of the .csv file where the learning progress will be saved.\n')

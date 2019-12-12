@@ -14,7 +14,7 @@ ACT_NONE = 5
 MAX_POSSIBLE_DIFF = 20  # maximum speed going straigth towards the checkpoint
 
 class Controller(controller_template.Controller):
-    def __init__(self, q_table_path: str, atten: float, alpha: float, init_temp, strategy: str):
+    def __init__(self, q_table_path: str, atten, alpha, init_temp, strategy: str):
         if q_table_path is None:
             self.q_table = QTable()
         else:
@@ -29,9 +29,9 @@ class Controller(controller_template.Controller):
         self.episode_number = 0
 
         # Attenuation of benefit
-        self.atten = atten
+        self.atten = atten[0]
         # Learning rate frame-wise
-        self.alpha = alpha
+        self.alpha = alpha[0]
         
         # Exploration
         self.strategy = strategy
