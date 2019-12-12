@@ -40,7 +40,7 @@ class Controller(controller_template.Controller):
         self.cooling_factor = 0.995
 
         self.eps = 0.1
-        self.eps_factor = 0.999
+        self.eps_factor = 0.99
 
     def update_q(self, new_state: State, old_state: State, action: int, reward: float, end_of_race: bool) -> None:
         """
