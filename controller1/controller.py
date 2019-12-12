@@ -163,7 +163,7 @@ class Controller(controller_template.Controller):
 
     def cooling(self, episode_number: int):
         
-        if episode_number == self.episode_number or self.temperature <= 1:
+        if episode_number == self.episode_number or self.temperature <= 2:
             return 
         
         else:
