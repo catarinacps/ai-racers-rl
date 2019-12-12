@@ -941,7 +941,7 @@ class Simulation:
         :param bot_type: Type of bot to be alongside user, can be set to None for no bot
         """
 
-        self.csvpath = "./results/"+csv_file_name[0]+".csv"
+        self.csvpath = "./results/" + csv_file_name[0]
 
         # Initialize GUI if requested
         if show_simulation:
@@ -1040,6 +1040,13 @@ class Simulation:
 
         episode_count = 0
         best_score = float('-inf')
+
+        self.csvpath = '_'.join([self.csvpath,
+                                 controller.strategy,
+                                 str(controller.alpha),
+                                 str(controller.atten),
+                                 ".csv"])
+
         while episode_count < number_of_episodes:
             self.reset()
 
@@ -1076,12 +1083,12 @@ class Simulation:
         controller.q_table.save(output)
 
         pass
-    
+
 
     def save_learning_progress(self, controller, episode_count):
-        
+
         if os.path.isfile(self.csvpath):
-            
+
             row = [episode_count, self.car1.score,
                     controller.eps, controller.temperature]
 
@@ -1089,18 +1096,14 @@ class Simulation:
                 writer = csv.writer(csv_file, delimiter=',')
                 writer.writerow(row)
         else:
-            first_row = ["episode", "score",
-                        "eps", "temperature",
-                        "strategy = "+str(controller.strategy),
-                        "alpha = "+str(controller.alpha), 
-                        "atten = "+str(controller.atten)]
+            header = ["episode", "score", "eps", "temperature"]
 
-            second_row = [episode_count, self.car1.score,
-                          controller.eps, controller.temperature]
+            row = [episode_count, self.car1.score,
+                   controller.eps, controller.temperature]
 
             with open(self.csvpath, "w", newline='') as csv_file:
                 writer = csv.writer(csv_file, delimiter=',')
-                writer.writerows([first_row, second_row])
+                writer.writerows([header, row])
 
 
     def evaluate(self, controller: Controller) -> None:
