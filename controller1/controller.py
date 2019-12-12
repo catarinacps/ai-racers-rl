@@ -14,7 +14,7 @@ ACT_NONE = 5
 MAX_POSSIBLE_DIFF = 20  # maximum speed going straigth towards the checkpoint
 
 class Controller(controller_template.Controller):
-    def __init__(self, q_table_path: str, atten: float, alpha: float, init_temp: float, strategy: str):
+    def __init__(self, q_table_path: str, atten: float, alpha: float, init_temp, strategy: str):
         if q_table_path is None:
             self.q_table = QTable()
         else:
@@ -36,7 +36,7 @@ class Controller(controller_template.Controller):
         # Exploration
         self.strategy = strategy
 
-        self.temperature = init_temp  
+        self.temperature = init_temp[0]  
         self.cooling_factor = 0.995
 
         self.eps = 0.1
@@ -194,12 +194,8 @@ class Controller(controller_template.Controller):
         evals = []
         for action in self.actions:
             q_value = self.q_table.get_q_value(state, action)
-            try:
-                evals.append(exp(q_value/self.temperature))
-            except:
-                print("q val:", q_value)
-                print("temp:", self.temperature)
-                input()
+            evals.append(exp(q_value/self.temperature))
+
 
         evals = [x/sum(evals) for x in evals]
         
